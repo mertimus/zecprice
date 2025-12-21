@@ -1,0 +1,14 @@
+{
+  "name": "zecprice",
+  "version": "1.0.0",
+  "description": "A simple app that displays the current price of ZEC (Zcash)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "keywords": ["zec", "zcash", "price", "cryptocurrency"],
+  "author": "",
+  "license": "MIT"
+}
+
