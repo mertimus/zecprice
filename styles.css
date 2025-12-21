@@ -60,6 +60,7 @@ main {
 }
 
 .chart-container {
+  position: relative;
   margin-top: 60px;
   height: 200px;
   opacity: 0.8;
@@ -68,5 +69,39 @@ main {
 canvas {
   width: 100% !important;
   height: 100% !important;
+}
+
+/* Live indicator pulse animation */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.5);
+  }
+}
+
+.live-indicator {
+  position: absolute;
+  pointer-events: none;
+}
+
+.live-indicator::before,
+.live-indicator::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  background: #fff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.live-indicator::after {
+  animation: pulse 1.5s ease-out infinite;
 }
 

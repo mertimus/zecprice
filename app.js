@@ -10,8 +10,22 @@ const headers = {
 
 const priceEl = document.getElementById('price');
 const chartCanvas = document.getElementById('chart');
+const liveIndicator = document.getElementById('live-indicator');
 
 let chart = null;
+
+// Update live indicator position
+function updateLiveIndicator() {
+  if (!chart || !chart.data.datasets[0].data.length) return;
+  
+  const meta = chart.getDatasetMeta(0);
+  const lastPoint = meta.data[meta.data.length - 1];
+  
+  if (lastPoint) {
+    liveIndicator.style.left = `${lastPoint.x}px`;
+    liveIndicator.style.top = `${lastPoint.y}px`;
+  }
+}
 
 // Format price with commas and 2 decimal places
 function formatPrice(price) {
@@ -71,6 +85,7 @@ async function updateChart() {
     chart.data.labels = labels;
     chart.data.datasets[0].data = data;
     chart.update('none');
+    updateLiveIndicator();
   } else {
     chart = new Chart(chartCanvas, {
       type: 'line',
@@ -108,7 +123,8 @@ async function updateChart() {
           }
         },
         animation: {
-          duration: 0
+          duration: 0,
+          onComplete: updateLiveIndicator
         }
       }
     });
