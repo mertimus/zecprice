@@ -26,6 +26,7 @@ html, body {
 }
 
 .splash span {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-size: 18px;
   font-weight: 300;
   letter-spacing: 0.15em;
