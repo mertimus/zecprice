@@ -129,6 +129,9 @@ function connectPriceStream() {
     updatePriceDisplay(formatPrice(price));
     updateChartLiveTip();
     
+    // Update browser tab title
+    document.title = `$${formatPrice(price)} · ZEC`;
+    
     // Reveal UI on first price
     if (!isReady) {
       isReady = true;
