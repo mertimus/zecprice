@@ -124,7 +124,7 @@ function revealUI() {
   splash.classList.add('fade-out');
   setTimeout(() => {
     container.classList.add('ready');
-  }, 650);
+  }, 1100);
 }
 
 // Connect to Binance WebSocket for real-time price updates
