@@ -15,10 +15,12 @@ const headers = {
 const priceEl = document.getElementById('price');
 const chartCanvas = document.getElementById('chart');
 const liveIndicator = document.getElementById('live-indicator');
+const container = document.querySelector('.container');
 
 let chart = null;
 let historicalData = null;  // CoinGecko data
 let livePrice = null;       // Current Binance price
+let isReady = false;        // Has first price loaded?
 
 // Update live indicator position
 function updateLiveIndicator() {
@@ -110,6 +112,12 @@ function connectPriceStream() {
     livePrice = price;
     updatePriceDisplay(formatPrice(price));
     updateChartLiveTip();
+    
+    // Reveal UI on first price
+    if (!isReady) {
+      isReady = true;
+      container.classList.add('ready');
+    }
   };
   
   ws.onclose = () => {
