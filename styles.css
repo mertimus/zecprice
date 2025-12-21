@@ -13,6 +13,31 @@ html, body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Splash screen */
+.splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  z-index: 100;
+  transition: opacity 0.5s ease;
+}
+
+.splash span {
+  font-size: 18px;
+  font-weight: 300;
+  letter-spacing: 0.15em;
+  color: #fff;
+  opacity: 0.7;
+}
+
+.splash.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
 main {
   min-height: 100%;
   display: flex;

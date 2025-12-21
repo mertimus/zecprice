@@ -16,6 +16,7 @@ const priceEl = document.getElementById('price');
 const chartCanvas = document.getElementById('chart');
 const liveIndicator = document.getElementById('live-indicator');
 const container = document.querySelector('.container');
+const splash = document.getElementById('splash');
 
 let chart = null;
 let historicalData = null;  // CoinGecko data
@@ -135,7 +136,12 @@ function connectPriceStream() {
     // Reveal UI on first price
     if (!isReady) {
       isReady = true;
-      container.classList.add('ready');
+      // Fade out splash
+      splash.classList.add('fade-out');
+      // After splash fades, show main UI
+      setTimeout(() => {
+        container.classList.add('ready');
+      }, 600);
     }
   };
   
