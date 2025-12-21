@@ -3,9 +3,10 @@
 // Binance WebSocket for real-time price
 const BINANCE_WS_URL = 'wss://stream.binance.com:9443/ws/zecusdt@trade';
 
-// CoinGecko for historical chart data
+// CoinGecko for initial price and historical chart data
 const API_KEY = 'CG-6CM3isvQQP4nPqrW5iVR6hdC';
 const API_BASE = 'https://pro-api.coingecko.com/api/v3';
+const COINGECKO_PRICE_URL = `${API_BASE}/simple/price?ids=zcash&vs_currencies=usd`;
 const COINGECKO_CHART_URL = `${API_BASE}/coins/zcash/market_chart?vs_currency=usd&days=365`;
 
 const headers = {
@@ -104,7 +105,29 @@ function updatePriceDisplay(newPrice) {
   currentChars = newChars;
 }
 
-// Connect to Binance WebSocket for real-time price
+// Fetch initial price from CoinGecko
+async function fetchInitialPrice() {
+  try {
+    const res = await fetch(COINGECKO_PRICE_URL, { headers });
+    const data = await res.json();
+    return data.zcash.usd;
+  } catch (err) {
+    console.error('Failed to fetch initial price:', err);
+    return null;
+  }
+}
+
+// Reveal the UI
+function revealUI() {
+  if (isReady) return;
+  isReady = true;
+  splash.classList.add('fade-out');
+  setTimeout(() => {
+    container.classList.add('ready');
+  }, 200);
+}
+
+// Connect to Binance WebSocket for real-time price updates
 function connectPriceStream() {
   const ws = new WebSocket(BINANCE_WS_URL);
   
@@ -115,11 +138,9 @@ function connectPriceStream() {
     // Flash color on price change
     if (previousPrice !== null && price !== previousPrice) {
       priceEl.classList.remove('flash-up', 'flash-down');
-      // Force reflow to restart transition
       void priceEl.offsetWidth;
       priceEl.classList.add(price > previousPrice ? 'flash-up' : 'flash-down');
       
-      // Remove class after animation
       setTimeout(() => {
         priceEl.classList.remove('flash-up', 'flash-down');
       }, 600);
@@ -129,24 +150,10 @@ function connectPriceStream() {
     livePrice = price;
     updatePriceDisplay(formatPrice(price));
     updateChartLiveTip();
-    
-    // Update browser tab title
     document.title = `$${formatPrice(price)} · ZEC`;
-    
-    // Reveal UI on first price
-    if (!isReady) {
-      isReady = true;
-      // Fade out splash
-      splash.classList.add('fade-out');
-      // After splash fades, show main UI
-      setTimeout(() => {
-        container.classList.add('ready');
-      }, 200);
-    }
   };
   
   ws.onclose = () => {
-    // Reconnect after 1 second if connection drops
     setTimeout(connectPriceStream, 1000);
   };
   
@@ -273,9 +280,30 @@ async function refreshHistoricalData() {
 }
 
 // Initial load
-connectPriceStream();
-initChart();
+async function init() {
+  // Fetch initial price and chart data in parallel
+  const [initialPrice] = await Promise.all([
+    fetchInitialPrice(),
+    initChart()
+  ]);
+  
+  // Show initial price and reveal UI
+  if (initialPrice !== null) {
+    livePrice = initialPrice;
+    previousPrice = initialPrice;
+    updatePriceDisplay(formatPrice(initialPrice));
+    updateChartLiveTip();
+    document.title = `$${formatPrice(initialPrice)} · ZEC`;
+  }
+  
+  revealUI();
+  
+  // Connect WebSocket for live updates
+  connectPriceStream();
+}
 
-// Refresh historical data every 5 minutes (the live tip updates in real-time)
+init();
+
+// Refresh historical data every 5 minutes
 setInterval(refreshHistoricalData, 5 * 60 * 1000);
 
