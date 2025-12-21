@@ -17,6 +17,8 @@ const chartCanvas = document.getElementById('chart');
 const liveIndicator = document.getElementById('live-indicator');
 
 let chart = null;
+let historicalData = null;  // CoinGecko data
+let livePrice = null;       // Current Binance price
 
 // Update live indicator position
 function updateLiveIndicator() {
@@ -105,7 +107,9 @@ function connectPriceStream() {
   ws.onmessage = (event) => {
     const trade = JSON.parse(event.data);
     const price = parseFloat(trade.p);
+    livePrice = price;
     updatePriceDisplay(formatPrice(price));
+    updateChartLiveTip();
   };
   
   ws.onclose = () => {
@@ -124,76 +128,101 @@ async function fetchChartData() {
   try {
     const res = await fetch(COINGECKO_CHART_URL, { headers });
     const data = await res.json();
-    return data.prices; // [[timestamp, price], ...]
+    historicalData = data.prices; // [[timestamp, price], ...]
+    return historicalData;
   } catch (err) {
     console.error('Failed to fetch chart data:', err);
     return null;
   }
 }
 
-
-// Initialize or update chart
-async function updateChart() {
-  const prices = await fetchChartData();
-  if (!prices) return;
-
-  const labels = prices.map(p => new Date(p[0]));
-  const data = prices.map(p => p[1]);
-
-  if (chart) {
-    chart.data.labels = labels;
-    chart.data.datasets[0].data = data;
-    chart.update('none');
-    updateLiveIndicator();
-  } else {
-    chart = new Chart(chartCanvas, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          data,
-          borderColor: '#fff',
-          borderWidth: 1.5,
-          fill: false,
-          tension: 0.1,
-          pointRadius: 0,
-          pointHoverRadius: 0
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: {
-          intersect: false,
-          mode: 'index'
-        },
-        plugins: {
-          legend: { display: false },
-          tooltip: { enabled: false }
-        },
-        scales: {
-          x: {
-            display: false,
-            grid: { display: false }
-          },
-          y: {
-            display: false,
-            grid: { display: false }
-          }
-        },
-        animation: {
-          duration: 0,
-          onComplete: updateLiveIndicator
-        }
-      }
-    });
+// Get chart data with live tip appended
+function getChartDataWithLiveTip() {
+  if (!historicalData) return { labels: [], data: [] };
+  
+  const labels = historicalData.map(p => new Date(p[0]));
+  const data = historicalData.map(p => p[1]);
+  
+  // Append live price as the rightmost point
+  if (livePrice !== null) {
+    labels.push(new Date());
+    data.push(livePrice);
   }
+  
+  return { labels, data };
+}
+
+// Update just the live tip of the chart (called on every price update)
+function updateChartLiveTip() {
+  if (!chart || !historicalData) return;
+  
+  const { labels, data } = getChartDataWithLiveTip();
+  chart.data.labels = labels;
+  chart.data.datasets[0].data = data;
+  chart.update('none');
+  updateLiveIndicator();
+}
+
+// Initialize chart with historical data
+async function initChart() {
+  await fetchChartData();
+  if (!historicalData) return;
+
+  const { labels, data } = getChartDataWithLiveTip();
+
+  chart = new Chart(chartCanvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        borderColor: '#fff',
+        borderWidth: 1.5,
+        fill: false,
+        tension: 0.1,
+        pointRadius: 0,
+        pointHoverRadius: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        intersect: false,
+        mode: 'index'
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { enabled: false }
+      },
+      scales: {
+        x: {
+          display: false,
+          grid: { display: false }
+        },
+        y: {
+          display: false,
+          grid: { display: false }
+        }
+      },
+      animation: {
+        duration: 0,
+        onComplete: updateLiveIndicator
+      }
+    }
+  });
+}
+
+// Refresh historical data periodically
+async function refreshHistoricalData() {
+  await fetchChartData();
+  updateChartLiveTip();
 }
 
 // Initial load
 connectPriceStream();
-updateChart();
+initChart();
 
-// Update chart every 1 second
-setInterval(updateChart, 1000);
+// Refresh historical data every 5 minutes (the live tip updates in real-time)
+setInterval(refreshHistoricalData, 5 * 60 * 1000);
 
