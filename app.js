@@ -121,7 +121,7 @@ function connectPriceStream() {
       // Remove class after animation
       setTimeout(() => {
         priceEl.classList.remove('flash-up', 'flash-down');
-      }, 100);
+      }, 400);
     }
     
     previousPrice = price;
