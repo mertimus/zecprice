@@ -19,9 +19,6 @@ jobs:
         with:
           node-version: '20'
       
-      - name: Install dependencies
-        run: npm ci
-      
       - name: Fetch latest shielded data
         env:
           ZCASH_RPC_URL: ${{ secrets.ZCASH_RPC_URL }}
