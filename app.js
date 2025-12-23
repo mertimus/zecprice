@@ -228,12 +228,56 @@ async function fetchLiveShieldedSupply() {
   }
 }
 
+// Count-up animation for shielded value
+let currentShieldedValue = 0;
+let shieldedAnimationFrame = null;
+
+function animateShieldedValue(targetValue, duration = 800) {
+  const startValue = currentShieldedValue;
+  const difference = targetValue - startValue;
+  
+  // Skip animation if no change or first load
+  if (difference === 0) return;
+  if (startValue === 0) {
+    currentShieldedValue = targetValue;
+    shieldedValueEl.textContent = formatShieldedValue(targetValue);
+    return;
+  }
+  
+  const startTime = performance.now();
+  
+  // Cancel any existing animation
+  if (shieldedAnimationFrame) {
+    cancelAnimationFrame(shieldedAnimationFrame);
+  }
+  
+  function animate(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    
+    // Ease-out cubic for smooth deceleration
+    const easeOut = 1 - Math.pow(1 - progress, 3);
+    
+    const currentValue = startValue + (difference * easeOut);
+    shieldedValueEl.textContent = formatShieldedValue(currentValue);
+    
+    if (progress < 1) {
+      shieldedAnimationFrame = requestAnimationFrame(animate);
+    } else {
+      currentShieldedValue = targetValue;
+      shieldedValueEl.textContent = formatShieldedValue(targetValue);
+    }
+  }
+  
+  shieldedAnimationFrame = requestAnimationFrame(animate);
+}
+
 // Update shielded display with live data
 function updateLiveShieldedDisplay(data) {
   if (!data) return;
   
-  // Update headline value
-  shieldedValueEl.textContent = formatShieldedValue(data.total);
+  // Animate headline value
+  animateShieldedValue(data.total);
   
   // Update percentage if we have circulating supply
   if (circulatingSupply && circulatingSupply > 0) {
@@ -262,8 +306,9 @@ function initShieldedChart() {
   const labels = shieldedData.map(d => new Date(d.t * 1000));
   const data = shieldedData.map(d => d.v);
   
-  // Update headline value
+  // Set initial headline value (no animation on first load)
   const latestValue = shieldedData[shieldedData.length - 1].v;
+  currentShieldedValue = latestValue;
   shieldedValueEl.textContent = formatShieldedValue(latestValue);
   
   // Update percentage if we have circulating supply
