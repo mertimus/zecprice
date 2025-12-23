@@ -1,0 +1,13 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+# Redirect for cleaner function URL
+[[redirects]]
+  from = "/api/zcash-rpc"
+  to = "/.netlify/functions/zcash-rpc"
+  status = 200
+
