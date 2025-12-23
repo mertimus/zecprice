@@ -9,7 +9,7 @@ const BINANCE_WS_URL = 'wss://stream.binance.com:9443/ws/zecusdt@trade';
 
 // CoinGecko via Netlify function (hides API key)
 const COINGECKO_PROXY = '/api/coingecko';
-const COINGECKO_PRICE_URL = `${COINGECKO_PROXY}?endpoint=simple/price?ids=zcash%26vs_currencies=usd`;
+const COINGECKO_PRICE_URL = `${COINGECKO_PROXY}?endpoint=simple/price?ids=zcash%26vs_currencies=usd%26include_24hr_change=true`;
 const COINGECKO_COIN_URL = `${COINGECKO_PROXY}?endpoint=coins/zcash`;
 const COINGECKO_CHART_URL = `${COINGECKO_PROXY}?endpoint=coins/zcash/market_chart?vs_currency=usd%26days=365`;
 
@@ -39,6 +39,7 @@ const priceChartCanvas = document.getElementById('price-chart');
 const shieldedChartCanvas = document.getElementById('shielded-chart');
 
 const priceEl = document.getElementById('price');
+const priceChangeEl = document.getElementById('price-change');
 const liveIndicator = document.getElementById('live-indicator');
 const pollProgressBar = document.getElementById('poll-progress-bar');
 
@@ -397,11 +398,28 @@ async function fetchInitialPrice() {
   try {
     const res = await fetch(COINGECKO_PRICE_URL);
     const data = await res.json();
+    
+    // Update 24h change display
+    const change24h = data.zcash.usd_24h_change;
+    if (change24h !== undefined) {
+      updatePriceChange(change24h);
+    }
+    
     return data.zcash.usd;
   } catch (err) {
     console.error('Failed to fetch initial price:', err);
     return null;
   }
+}
+
+function updatePriceChange(change) {
+  const isUp = change >= 0;
+  const sign = isUp ? '+' : '';
+  const formatted = `${sign}${change.toFixed(2)}%`;
+  
+  priceChangeEl.textContent = formatted;
+  priceChangeEl.classList.remove('up', 'down');
+  priceChangeEl.classList.add(isUp ? 'up' : 'down');
 }
 
 async function fetchCirculatingSupply() {

@@ -135,6 +135,22 @@ main {
   justify-content: center;
 }
 
+.price-change {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  opacity: 0.4;
+  margin-top: 8px;
+}
+
+.price-change.up {
+  color: #22c55e;
+}
+
+.price-change.down {
+  color: #ef4444;
+}
+
 .currency {
   font-size: 32px;
   font-weight: 300;
