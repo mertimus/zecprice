@@ -16,6 +16,7 @@ const COINGECKO_CHART_URL = `${API_BASE}/coins/zcash/market_chart?vs_currency=us
 
 // Shielded pool data
 const SHIELDED_DATA_URL = 'shielded-pool-data.json';
+const ZCASH_RPC_PROXY = '/api/zcash-rpc';  // Netlify function
 
 const headers = {
   'x-cg-pro-api-key': API_KEY
@@ -194,6 +195,69 @@ async function fetchShieldedData() {
   } catch (err) {
     console.error('Failed to fetch shielded data:', err);
     return null;
+  }
+}
+
+// Fetch live shielded supply from Zcash node via RPC proxy
+async function fetchLiveShieldedSupply() {
+  try {
+    // Get current block height
+    const heightRes = await fetch(ZCASH_RPC_PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '1.0', id: 'zec', method: 'getblockcount', params: [] })
+    });
+    const heightData = await heightRes.json();
+    const height = heightData.result;
+    
+    // Get block with valuePools
+    const blockRes = await fetch(ZCASH_RPC_PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '1.0', id: 'zec', method: 'getblock', params: [String(height), 1] })
+    });
+    const blockData = await blockRes.json();
+    const block = blockData.result;
+    
+    // Calculate total shielded
+    const pools = block.valuePools || [];
+    const sprout = pools.find(p => p.id === 'sprout')?.chainValueZat || 0;
+    const sapling = pools.find(p => p.id === 'sapling')?.chainValueZat || 0;
+    const orchard = pools.find(p => p.id === 'orchard')?.chainValueZat || 0;
+    const total = (sprout + sapling + orchard) / 1e8;
+    
+    return { height, time: block.time, total, sprout: sprout/1e8, sapling: sapling/1e8, orchard: orchard/1e8 };
+  } catch (err) {
+    console.error('Failed to fetch live shielded supply:', err);
+    return null;
+  }
+}
+
+// Update shielded display with live data
+function updateLiveShieldedDisplay(data) {
+  if (!data) return;
+  
+  // Update headline value
+  shieldedValueEl.textContent = formatShieldedValue(data.total);
+  
+  // Update percentage if we have circulating supply
+  if (circulatingSupply && circulatingSupply > 0) {
+    const percent = (data.total / circulatingSupply) * 100;
+    shieldedPercentEl.textContent = `${Math.round(percent)}%`;
+  }
+  
+  // Update chart with live tip (append to historical data)
+  if (shieldedChart && shieldedData) {
+    const labels = shieldedData.map(d => new Date(d.t * 1000));
+    const chartData = shieldedData.map(d => d.v);
+    
+    // Append live data point
+    labels.push(new Date(data.time * 1000));
+    chartData.push(data.total);
+    
+    shieldedChart.data.labels = labels;
+    shieldedChart.data.datasets[0].data = chartData;
+    shieldedChart.update('none');
   }
 }
 
@@ -482,6 +546,12 @@ async function init() {
   }
   initPriceChart();
   
+  // Fetch live shielded supply (updates headline and chart tip)
+  const liveShielded = await fetchLiveShieldedSupply();
+  if (liveShielded) {
+    updateLiveShieldedDisplay(liveShielded);
+  }
+  
   // Reveal UI
   revealUI();
   
@@ -496,3 +566,11 @@ setInterval(async () => {
   await fetchPriceChartData();
   updatePriceChartLiveTip();
 }, 5 * 60 * 1000);
+
+// Refresh shielded supply every 75 seconds (~1 block)
+setInterval(async () => {
+  const liveShielded = await fetchLiveShieldedSupply();
+  if (liveShielded) {
+    updateLiveShieldedDisplay(liveShielded);
+  }
+}, 75 * 1000);
