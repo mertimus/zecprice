@@ -471,40 +471,87 @@ function initPriceChart() {
 }
 
 // ============================================================================
-// WebSocket Price Stream
+// WebSocket Price Stream (with fallback to polling)
 // ============================================================================
+
+let wsConnected = false;
+let wsRetries = 0;
+let pollingInterval = null;
+
+function updatePrice(price) {
+  // Flash color on price change
+  if (previousPrice !== null && price !== previousPrice) {
+    priceEl.classList.remove('flash-up', 'flash-down');
+    void priceEl.offsetWidth;
+    priceEl.classList.add(price > previousPrice ? 'flash-up' : 'flash-down');
+    
+    setTimeout(() => {
+      priceEl.classList.remove('flash-up', 'flash-down');
+    }, 600);
+  }
+  
+  previousPrice = price;
+  livePrice = price;
+  updatePriceDisplay(formatPrice(price));
+  updatePriceChartLiveTip();
+  document.title = `$${formatPrice(price)} · ZEC`;
+}
+
+// Fallback: poll CoinGecko every 10 seconds
+function startPricePolling() {
+  if (pollingInterval) return; // Already polling
+  
+  console.log('WebSocket unavailable, falling back to polling');
+  pollingInterval = setInterval(async () => {
+    try {
+      const res = await fetch(COINGECKO_PRICE_URL, { headers });
+      const data = await res.json();
+      const price = data.zcash.usd;
+      updatePrice(price);
+    } catch (err) {
+      console.error('Price poll failed:', err);
+    }
+  }, 10000); // Every 10 seconds
+}
+
+function stopPricePolling() {
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+    pollingInterval = null;
+  }
+}
 
 function connectPriceStream() {
   const ws = new WebSocket(BINANCE_WS_URL);
   
+  ws.onopen = () => {
+    wsConnected = true;
+    wsRetries = 0;
+    stopPricePolling(); // Stop polling if WebSocket connects
+  };
+  
   ws.onmessage = (event) => {
     const trade = JSON.parse(event.data);
     const price = parseFloat(trade.p);
-    
-    // Flash color on price change
-    if (previousPrice !== null && price !== previousPrice) {
-      priceEl.classList.remove('flash-up', 'flash-down');
-      void priceEl.offsetWidth;
-      priceEl.classList.add(price > previousPrice ? 'flash-up' : 'flash-down');
-      
-      setTimeout(() => {
-        priceEl.classList.remove('flash-up', 'flash-down');
-      }, 600);
-    }
-    
-    previousPrice = price;
-    livePrice = price;
-    updatePriceDisplay(formatPrice(price));
-    updatePriceChartLiveTip();
-    document.title = `$${formatPrice(price)} · ZEC`;
+    updatePrice(price);
   };
   
-  ws.onclose = () => {
-    setTimeout(connectPriceStream, 1000);
+  ws.onclose = (event) => {
+    wsConnected = false;
+    
+    // If blocked (451) or too many retries, switch to polling
+    if (wsRetries >= 3) {
+      startPricePolling();
+      return;
+    }
+    
+    wsRetries++;
+    setTimeout(connectPriceStream, 2000);
   };
   
   ws.onerror = (err) => {
     console.error('WebSocket error:', err);
+    wsConnected = false;
     ws.close();
   };
 }
