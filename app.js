@@ -244,6 +244,15 @@ function animateShieldedValue(targetValue, duration = 800) {
     return;
   }
   
+  // Flash green/red based on direction
+  shieldedValueEl.classList.remove('flash-up', 'flash-down');
+  void shieldedValueEl.offsetWidth; // Force reflow
+  shieldedValueEl.classList.add(difference > 0 ? 'flash-up' : 'flash-down');
+  
+  setTimeout(() => {
+    shieldedValueEl.classList.remove('flash-up', 'flash-down');
+  }, duration);
+  
   const startTime = performance.now();
   
   // Cancel any existing animation

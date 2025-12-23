@@ -224,6 +224,19 @@ main {
   transition: color 0.8s ease;
 }
 
+/* Shielded value direction flash */
+.shielded-value {
+  transition: color 0.8s ease;
+}
+
+.shielded-value.flash-up {
+  color: #22c55e;
+}
+
+.shielded-value.flash-down {
+  color: #ef4444;
+}
+
 /* Charts wrapper */
 .charts-wrapper {
   margin-top: 48px;
