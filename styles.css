@@ -67,7 +67,7 @@ main {
   align-items: center;
   justify-content: center;
   padding: 40px 20px;
-  padding-bottom: 100px;
+  padding-bottom: 120px;
 }
 
 .container {
@@ -132,6 +132,10 @@ main {
   margin-bottom: 8px;
 }
 
+.shielded-percent {
+  opacity: 0.7;
+}
+
 /* Price display */
 .price-wrapper {
   display: inline-flex;
@@ -183,6 +187,59 @@ main {
   border-color: rgba(239, 68, 68, 0.4);
 }
 
+/* Shielded timeframe button */
+.shielded-change-btn {
+  display: block;
+  margin: 12px auto 0;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  padding: 6px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.shielded-change-btn:active {
+  transform: scale(0.95);
+}
+
+.shielded-change-btn:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.shielded-change-btn.up {
+  color: #22c55e;
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+.shielded-change-btn.up:hover {
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.shielded-change-btn.down {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.shielded-change-btn.down:hover {
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.shielded-change-btn.loading {
+  animation: pulse-loading 1s ease-in-out infinite;
+}
+
+@keyframes pulse-loading {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
 
 .currency {
   font-size: 32px;
@@ -289,6 +346,7 @@ main {
 /* Charts wrapper */
 .charts-wrapper {
   margin-top: 48px;
+  margin-bottom: 60px;
 }
 
 /* Chart views container */
@@ -364,14 +422,16 @@ canvas {
 /* View Toggle Button */
 .view-toggle {
   position: fixed;
-  bottom: 32px;
+  bottom: 40px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 12px 20px;
-  background: transparent;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 100px;
   color: rgba(255, 255, 255, 0.6);

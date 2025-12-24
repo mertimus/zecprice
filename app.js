@@ -18,6 +18,7 @@ const COINGECKO_CHART_1H_URL = `${COINGECKO_PROXY}?endpoint=coins/zcash/market_c
 
 // Shielded pool data
 const SHIELDED_DATA_URL = 'shielded-pool-data.json';
+const SHIELDED_HOURLY_URL = '/api/shielded-hourly';
 const ZCASH_RPC_PROXY = '/api/zcash-rpc';  // Netlify function
 
 // ============================================================================
@@ -43,6 +44,7 @@ const shieldedChartCanvas = document.getElementById('shielded-chart');
 
 const priceEl = document.getElementById('price');
 const priceChangeBtn = document.getElementById('price-change-btn');
+const shieldedChangeBtn = document.getElementById('shielded-change-btn');
 const liveIndicator = document.getElementById('live-indicator');
 const pollProgressBar = document.getElementById('poll-progress-bar');
 
@@ -55,8 +57,12 @@ let isReady = false;
 
 // Shielded data
 let shieldedData = null;
+let shieldedDataFull = null; // Full historical data for filtering
 let shieldedChart = null;
 let circulatingSupply = null;
+let shieldedChartTimeframe = 'all'; // 'all', '1y', '1mo', '1d'
+const SHIELDED_TIMEFRAME_CYCLE = ['all', '1y', '1mo', '1d'];
+const SHIELDED_TIMEFRAME_LABELS = { 'all': 'All', '1y': 'Y', '1mo': 'M', '1d': 'D' };
 
 // Price data
 let priceChart = null;
@@ -194,12 +200,116 @@ async function fetchShieldedData() {
   try {
     const res = await fetch(SHIELDED_DATA_URL);
     const json = await res.json();
-    shieldedData = json.data;
+    shieldedDataFull = json.data;
+    shieldedData = shieldedDataFull; // Start with all data
     return shieldedData;
   } catch (err) {
     console.error('Failed to fetch shielded data:', err);
     return null;
   }
+}
+
+// Fetch hourly shielded data for 1D view
+async function fetchShieldedHourlyData() {
+  try {
+    const res = await fetch(SHIELDED_HOURLY_URL);
+    const json = await res.json();
+    return json.data;
+  } catch (err) {
+    console.error('Failed to fetch hourly shielded data:', err);
+    return null;
+  }
+}
+
+// Filter shielded data by timeframe
+function getShieldedDataForTimeframe(timeframe) {
+  if (!shieldedDataFull) return [];
+  
+  const now = Date.now() / 1000;
+  let cutoff;
+  
+  switch (timeframe) {
+    case '1d':
+      return null; // Will fetch from hourly endpoint
+    case '1mo':
+      cutoff = now - (30 * 24 * 60 * 60);
+      break;
+    case '1y':
+      cutoff = now - (365 * 24 * 60 * 60);
+      break;
+    case 'all':
+    default:
+      return shieldedDataFull;
+  }
+  
+  return shieldedDataFull.filter(d => d.t >= cutoff);
+}
+
+// Update shielded timeframe button with % change
+function updateShieldedBtn(data) {
+  const label = SHIELDED_TIMEFRAME_LABELS[shieldedChartTimeframe];
+  
+  // For "All" timeframe, just show label (% from genesis is meaningless)
+  if (shieldedChartTimeframe === 'all') {
+    shieldedChangeBtn.textContent = label;
+    shieldedChangeBtn.classList.remove('up', 'down');
+    return;
+  }
+  
+  // Calculate % change if we have data
+  let percentChange = 0;
+  const chartData = data || shieldedData;
+  if (chartData && chartData.length >= 2) {
+    const firstValue = chartData[0].v;
+    const lastValue = chartData[chartData.length - 1].v;
+    if (firstValue > 0) {
+      percentChange = ((lastValue - firstValue) / firstValue) * 100;
+    }
+  }
+  
+  const isUp = percentChange >= 0;
+  const formatted = `${Math.abs(percentChange).toFixed(1)}% · ${label}`;
+  
+  shieldedChangeBtn.textContent = formatted;
+  shieldedChangeBtn.classList.remove('up', 'down');
+  shieldedChangeBtn.classList.add(isUp ? 'up' : 'down');
+}
+
+// Toggle shielded chart timeframe
+async function toggleShieldedChartTimeframe() {
+  const currentIndex = SHIELDED_TIMEFRAME_CYCLE.indexOf(shieldedChartTimeframe);
+  shieldedChartTimeframe = SHIELDED_TIMEFRAME_CYCLE[(currentIndex + 1) % SHIELDED_TIMEFRAME_CYCLE.length];
+  
+  let newData;
+  if (shieldedChartTimeframe === '1d') {
+    // Show loading state for API fetch
+    shieldedChangeBtn.textContent = '· · ·';
+    shieldedChangeBtn.classList.add('loading');
+    shieldedChangeBtn.classList.remove('up', 'down');
+    
+    // Fetch hourly data for 1D view
+    newData = await fetchShieldedHourlyData();
+    
+    shieldedChangeBtn.classList.remove('loading');
+  } else {
+    // Filter existing data (instant, no loading needed)
+    newData = getShieldedDataForTimeframe(shieldedChartTimeframe);
+  }
+  
+  if (newData && newData.length > 0) {
+    shieldedData = newData;
+    
+    // Update chart
+    const labels = shieldedData.map(d => new Date(d.t * 1000));
+    const data = shieldedData.map(d => d.v);
+    
+    shieldedChart.data.labels = labels;
+    shieldedChart.data.datasets[0].data = data;
+    shieldedChart.update();
+  }
+  
+  // Update button with % change
+  updateShieldedBtn(newData);
 }
 
 // Fetch live shielded supply from Zcash node via RPC proxy
@@ -297,7 +407,7 @@ function updateLiveShieldedDisplay(data) {
   // Animate headline value
   animateShieldedValue(data.total);
   
-  // Update percentage if we have circulating supply
+  // Update percentage of supply shielded
   if (circulatingSupply && circulatingSupply > 0) {
     const percent = (data.total / circulatingSupply) * 100;
     shieldedPercentEl.textContent = `${Math.round(percent)}%`;
@@ -329,11 +439,14 @@ function initShieldedChart() {
   currentShieldedValue = latestValue;
   shieldedValueEl.textContent = formatShieldedValue(latestValue);
   
-  // Update percentage if we have circulating supply
+  // Update percentage of supply shielded
   if (circulatingSupply && circulatingSupply > 0) {
     const percent = (latestValue / circulatingSupply) * 100;
     shieldedPercentEl.textContent = `${Math.round(percent)}%`;
   }
+  
+  // Set initial timeframe button label
+  updateShieldedBtn();
   
   shieldedChart = new Chart(shieldedChartCanvas, {
     type: 'line',
@@ -372,6 +485,13 @@ function initShieldedChart() {
           callbacks: {
             title: (items) => {
               const date = new Date(items[0].label);
+              if (shieldedChartTimeframe === '1d') {
+                // Show time for 1D view
+                return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+              } else if (shieldedChartTimeframe === '1mo') {
+                // Show date without year for 1M
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              }
               return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
             },
             label: (item) => {
@@ -492,6 +612,7 @@ async function togglePriceChartTimeframe() {
 }
 
 priceChangeBtn.addEventListener('click', togglePriceChartTimeframe);
+shieldedChangeBtn.addEventListener('click', toggleShieldedChartTimeframe);
 
 async function fetchCirculatingSupply() {
   try {

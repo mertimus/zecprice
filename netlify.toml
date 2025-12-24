@@ -16,3 +16,7 @@
   to = "/.netlify/functions/coingecko"
   status = 200
 
+[[redirects]]
+  from = "/api/shielded-hourly"
+  to = "/.netlify/functions/shielded-hourly"
+  status = 200
