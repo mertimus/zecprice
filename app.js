@@ -11,7 +11,9 @@ const BINANCE_WS_URL = 'wss://stream.binance.com:9443/ws/zecusdt@trade';
 const COINGECKO_PROXY = '/api/coingecko';
 const COINGECKO_PRICE_URL = `${COINGECKO_PROXY}?endpoint=simple/price?ids=zcash%26vs_currencies=usd%26include_24hr_change=true`;
 const COINGECKO_COIN_URL = `${COINGECKO_PROXY}?endpoint=coins/zcash`;
-const COINGECKO_CHART_URL = `${COINGECKO_PROXY}?endpoint=coins/zcash/market_chart?vs_currency=usd%26days=365`;
+const COINGECKO_CHART_1Y_URL = `${COINGECKO_PROXY}?endpoint=coins/zcash/market_chart?vs_currency=usd%26days=365`;
+const COINGECKO_CHART_1M_URL = `${COINGECKO_PROXY}?endpoint=coins/zcash/market_chart?vs_currency=usd%26days=30`;
+const COINGECKO_CHART_1D_URL = `${COINGECKO_PROXY}?endpoint=coins/zcash/market_chart?vs_currency=usd%26days=1`;
 
 // Shielded pool data
 const SHIELDED_DATA_URL = 'shielded-pool-data.json';
@@ -39,7 +41,7 @@ const priceChartCanvas = document.getElementById('price-chart');
 const shieldedChartCanvas = document.getElementById('shielded-chart');
 
 const priceEl = document.getElementById('price');
-const priceChangeEl = document.getElementById('price-change');
+const priceChangeBtn = document.getElementById('price-change-btn');
 const liveIndicator = document.getElementById('live-indicator');
 const pollProgressBar = document.getElementById('poll-progress-bar');
 
@@ -61,6 +63,9 @@ let priceHistoricalData = null;
 let livePrice = null;
 let previousPrice = null;
 let currentPriceChars = [];
+let priceChartTimeframe = '1d'; // '1d', '1m', or '1y' - starts at D
+const TIMEFRAME_CYCLE = ['1d', '1m', '1y'];
+const TIMEFRAME_LABELS = { '1d': 'D', '1m': 'M', '1y': 'Y' };
 
 // ============================================================================
 // View Toggle
@@ -402,7 +407,7 @@ async function fetchInitialPrice() {
     // Update 24h change display
     const change24h = data.zcash.usd_24h_change;
     if (change24h !== undefined) {
-      updatePriceChange(change24h);
+      updatePriceChangeBtn(change24h);
     }
     
     return data.zcash.usd;
@@ -412,15 +417,65 @@ async function fetchInitialPrice() {
   }
 }
 
-function updatePriceChange(change) {
+let currentPriceChange = 0;
+
+function updatePriceChangeBtn(change) {
+  currentPriceChange = change;
   const isUp = change >= 0;
-  const sign = isUp ? '+' : '';
-  const formatted = `${sign}${change.toFixed(2)}%`;
+  const label = TIMEFRAME_LABELS[priceChartTimeframe];
+  const percentText = `${Math.abs(change).toFixed(2)}%`;
   
-  priceChangeEl.textContent = formatted;
-  priceChangeEl.classList.remove('up', 'down');
-  priceChangeEl.classList.add(isUp ? 'up' : 'down');
+  // Use innerHTML to style the label differently
+  priceChangeBtn.innerHTML = `<span class="pct">${percentText}</span> · <span class="tf-label">${label}</span>`;
+  priceChangeBtn.classList.remove('up', 'down');
+  priceChangeBtn.classList.add(isUp ? 'up' : 'down');
 }
+
+// Toggle price chart timeframe
+async function togglePriceChartTimeframe() {
+  // Cycle to next timeframe: 1d → 1m → 1y → 1d...
+  const currentIndex = TIMEFRAME_CYCLE.indexOf(priceChartTimeframe);
+  priceChartTimeframe = TIMEFRAME_CYCLE[(currentIndex + 1) % TIMEFRAME_CYCLE.length];
+  
+  // Add loading state to button
+  priceChangeBtn.style.opacity = '0.5';
+  
+  // Fetch new chart data
+  await fetchPriceChartData(priceChartTimeframe);
+  
+  // Update chart with smooth animation
+  if (priceChart && priceHistoricalData) {
+    const { labels, data } = getPriceChartDataWithLiveTip();
+    priceChart.data.labels = labels;
+    priceChart.data.datasets[0].data = data;
+    
+    // Force animation by updating with explicit config
+    priceChart.update({
+      duration: 400,
+      easing: 'easeOutQuart'
+    });
+    
+    setTimeout(updateLiveIndicator, 400);
+    
+    // Calculate % change for current timeframe
+    if (data.length >= 2) {
+      const firstPrice = data[0];
+      const lastPrice = data[data.length - 1];
+      const percentChange = ((lastPrice - firstPrice) / firstPrice) * 100;
+      
+      // Animate button content change
+      priceChangeBtn.style.opacity = '0';
+      setTimeout(() => {
+        updatePriceChangeBtn(percentChange);
+        priceChangeBtn.style.opacity = '1';
+      }, 150);
+    }
+  } else {
+    priceChangeBtn.style.opacity = '1';
+  }
+}
+
+priceChangeBtn.addEventListener('click', togglePriceChartTimeframe);
 
 async function fetchCirculatingSupply() {
   try {
@@ -434,9 +489,14 @@ async function fetchCirculatingSupply() {
   }
 }
 
-async function fetchPriceChartData() {
+async function fetchPriceChartData(timeframe = '1y') {
   try {
-    const res = await fetch(COINGECKO_CHART_URL);
+    let url;
+    if (timeframe === '1d') url = COINGECKO_CHART_1D_URL;
+    else if (timeframe === '1m') url = COINGECKO_CHART_1M_URL;
+    else url = COINGECKO_CHART_1Y_URL;
+    
+    const res = await fetch(url);
     const data = await res.json();
     priceHistoricalData = data.prices;
     return priceHistoricalData;
@@ -512,6 +572,13 @@ function initPriceChart() {
           callbacks: {
             title: (items) => {
               const date = new Date(items[0].label);
+              if (priceChartTimeframe === '1d') {
+                // Show time for 1D chart
+                return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+              } else if (priceChartTimeframe === '1m') {
+                // Show date without year for 1M chart
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              }
               return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
             },
             label: (item) => {
@@ -531,7 +598,8 @@ function initPriceChart() {
         }
       },
       animation: {
-        duration: 0,
+        duration: 400,
+        easing: 'easeOutQuart',
         onComplete: updateLiveIndicator
       }
     }
@@ -646,7 +714,7 @@ async function init() {
   const [shielded, initialPrice] = await Promise.all([
     fetchShieldedData(),
     fetchInitialPrice(),
-    fetchPriceChartData(),
+    fetchPriceChartData(priceChartTimeframe),
     fetchCirculatingSupply()
   ]);
   
@@ -678,7 +746,7 @@ init();
 
 // Refresh price data every 5 minutes
 setInterval(async () => {
-  await fetchPriceChartData();
+  await fetchPriceChartData(priceChartTimeframe);
   updatePriceChartLiveTip();
 }, 5 * 60 * 1000);
 

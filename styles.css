@@ -101,11 +101,13 @@ main {
   top: 0;
   opacity: 0;
   transform: translateY(-30px) scale(0.7);
+  pointer-events: none;
 }
 
 .headline-price.active {
   opacity: 1;
   transform: translateY(0) scale(1);
+  pointer-events: auto;
 }
 
 /* Shielded headline */
@@ -113,11 +115,13 @@ main {
   top: 0;
   opacity: 0;
   transform: translateY(30px) scale(0.7);
+  pointer-events: none;
 }
 
 .headline-shielded.active {
   opacity: 1;
   transform: translateY(0) scale(1);
+  pointer-events: auto;
 }
 
 .ticker {
@@ -135,21 +139,50 @@ main {
   justify-content: center;
 }
 
-.price-change {
+.price-change-btn {
+  display: block;
+  margin: 12px auto 0;
+  font-family: inherit;
   font-size: 12px;
   font-weight: 400;
   letter-spacing: 0.05em;
-  opacity: 0.4;
-  margin-top: 8px;
+  padding: 6px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.price-change.up {
+.price-change-btn:active {
+  transform: scale(0.95);
+}
+
+.price-change-btn:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.price-change-btn.up {
   color: #22c55e;
+  border-color: rgba(34, 197, 94, 0.2);
 }
 
-.price-change.down {
-  color: #ef4444;
+.price-change-btn.up:hover {
+  border-color: rgba(34, 197, 94, 0.4);
 }
+
+.price-change-btn.down {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.price-change-btn.down:hover {
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
 
 .currency {
   font-size: 32px;
