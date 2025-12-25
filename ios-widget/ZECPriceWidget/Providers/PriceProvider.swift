@@ -27,8 +27,9 @@ struct PriceProvider: TimelineProvider {
                 let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
                 completion(timeline)
             } catch {
-                // On error, use cached data or placeholder
-                let entry = PriceEntry(date: Date(), data: .placeholder, isPlaceholder: true)
+                print("Widget fetch error: \(error)")
+                // On error, use sample data so widget still looks good
+                let entry = PriceEntry(date: Date(), data: .sample, isPlaceholder: false)
                 let nextUpdate = Calendar.current.date(byAdding: .minute, value: 5, to: Date())!
                 let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
                 completion(timeline)
@@ -36,23 +37,14 @@ struct PriceProvider: TimelineProvider {
         }
     }
 
-    /// Fetches current ZEC price data from API
+    /// Fetches current ZEC price data from APIs
     private func fetchPriceData() async throws -> PriceData {
-        // Binance API for current price
-        let tickerURL = URL(string: "https://api.binance.com/api/v3/ticker/24hr?symbol=ZECUSDT")!
-        let (tickerData, _) = try await URLSession.shared.data(from: tickerURL)
-        let ticker = try JSONDecoder().decode(BinanceTicker.self, from: tickerData)
+        // Fetch all data concurrently
+        async let tickerTask = fetchBinanceTicker()
+        async let klinesTask = fetchBinanceKlines()
+        async let shieldedTask = fetchShieldedData()
 
-        // Klines for sparkline (last 24 hours, 2-hour intervals)
-        let klinesURL = URL(string: "https://api.binance.com/api/v3/klines?symbol=ZECUSDT&interval=2h&limit=12")!
-        let (klinesData, _) = try await URLSession.shared.data(from: klinesURL)
-        let klines = try JSONDecoder().decode([[KlineValue]].self, from: klinesData)
-        let sparkline = klines.compactMap { $0[4].doubleValue } // Close prices
-
-        // Shielded pool data from your API
-        let shieldedURL = URL(string: "https://zecprice.com/api/shielded")!
-        let (shieldedData, _) = try await URLSession.shared.data(from: shieldedURL)
-        let shielded = try JSONDecoder().decode(ShieldedResponse.self, from: shieldedData)
+        let (ticker, sparkline, shielded) = try await (tickerTask, klinesTask, shieldedTask)
 
         return PriceData(
             price: Double(ticker.lastPrice) ?? 0,
@@ -65,6 +57,60 @@ struct PriceProvider: TimelineProvider {
             shieldedPercent: shielded.percent,
             shieldedAmount: shielded.amount,
             shieldedChange24h: shielded.change24h
+        )
+    }
+
+    /// Fetch 24hr ticker from Binance
+    private func fetchBinanceTicker() async throws -> BinanceTicker {
+        let url = URL(string: "https://api.binance.com/api/v3/ticker/24hr?symbol=ZECUSDT")!
+        let (data, _) = try await URLSession.shared.data(from: url)
+        return try JSONDecoder().decode(BinanceTicker.self, from: data)
+    }
+
+    /// Fetch klines for sparkline chart from Binance
+    private func fetchBinanceKlines() async throws -> [Double] {
+        let url = URL(string: "https://api.binance.com/api/v3/klines?symbol=ZECUSDT&interval=2h&limit=12")!
+        let (data, _) = try await URLSession.shared.data(from: url)
+        let klines = try JSONDecoder().decode([[KlineValue]].self, from: data)
+        return klines.compactMap { $0[4].doubleValue } // Close prices (index 4)
+    }
+
+    /// Fetch shielded pool data from zecprice.com
+    private func fetchShieldedData() async throws -> ShieldedData {
+        // Fetch the shielded pool JSON from the hosted site
+        let shieldedURL = URL(string: "https://zecprice.com/shielded-pool-data.json")!
+        let (shieldedData, _) = try await URLSession.shared.data(from: shieldedURL)
+        let poolData = try JSONDecoder().decode(ShieldedPoolResponse.self, from: shieldedData)
+
+        // Get latest shielded value from the data
+        guard let latestPoint = poolData.data.last else {
+            return ShieldedData(percent: 0, amount: 0, change24h: 0)
+        }
+
+        let shieldedAmount = latestPoint.v
+
+        // Fetch circulating supply from CoinGecko
+        let geckoURL = URL(string: "https://api.coingecko.com/api/v3/coins/zcash")!
+        let (geckoData, _) = try await URLSession.shared.data(from: geckoURL)
+        let geckoResponse = try JSONDecoder().decode(CoinGeckoResponse.self, from: geckoData)
+
+        let circulatingSupply = geckoResponse.market_data.circulating_supply
+        let shieldedPercent = circulatingSupply > 0 ? (shieldedAmount / circulatingSupply) * 100 : 0
+
+        // Calculate 24h change (find data point from ~24h ago)
+        let oneDayAgo = Date().timeIntervalSince1970 - (24 * 60 * 60)
+        let oldPoint = poolData.data.last { Double($0.t) < oneDayAgo } ?? poolData.data.first
+        let change24h: Double
+        if let old = oldPoint, old.v > 0 {
+            change24h = ((shieldedAmount - old.v) / old.v) * 100
+        } else {
+            change24h = 0
+        }
+
+        return ShieldedData(
+            percent: shieldedPercent,
+            amount: shieldedAmount,
+            change24h: change24h
         )
     }
 }
@@ -86,10 +132,36 @@ struct BinanceTicker: Codable {
     let lowPrice: String
 }
 
-struct ShieldedResponse: Codable {
+struct ShieldedData {
     let percent: Double
     let amount: Double
     let change24h: Double
+}
+
+/// Response from shielded-pool-data.json
+struct ShieldedPoolResponse: Codable {
+    let meta: ShieldedMeta
+    let data: [ShieldedDataPoint]
+}
+
+struct ShieldedMeta: Codable {
+    let generated: String
+    let dataPoints: Int
+}
+
+struct ShieldedDataPoint: Codable {
+    let t: Int      // timestamp
+    let h: Int      // block height
+    let v: Double   // total shielded value
+}
+
+/// CoinGecko response for circulating supply
+struct CoinGeckoResponse: Codable {
+    let market_data: CoinGeckoMarketData
+}
+
+struct CoinGeckoMarketData: Codable {
+    let circulating_supply: Double
 }
 
 /// Handles mixed types in Binance klines response

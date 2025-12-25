@@ -61,31 +61,31 @@ struct PriceData: Codable {
         return formatter.localizedString(for: lastUpdated, relativeTo: Date())
     }
 
-    /// Sample data for previews
+    /// Sample data for previews (realistic current ZEC prices ~$440)
     static let sample = PriceData(
-        price: 48.23,
-        change24h: 1.12,
-        changePercent24h: 2.34,
-        high24h: 49.50,
-        low24h: 46.80,
+        price: 440.38,
+        change24h: -2.08,
+        changePercent24h: -0.47,
+        high24h: 448.50,
+        low24h: 432.20,
         lastUpdated: Date(),
-        sparkline: [45.2, 46.1, 45.8, 47.2, 46.9, 48.0, 47.5, 48.2, 48.1, 48.23],
+        sparkline: [435.2, 438.1, 442.8, 445.2, 443.9, 440.0, 438.5, 441.2, 439.1, 440.38],
         shieldedPercent: 23.4,
-        shieldedAmount: 1234567,
+        shieldedAmount: 4200000,
         shieldedChange24h: 0.12
     )
 
     /// Sample data showing negative change
     static let sampleNegative = PriceData(
-        price: 45.67,
-        change24h: -2.56,
-        changePercent24h: -5.31,
-        high24h: 48.50,
-        low24h: 44.20,
+        price: 428.67,
+        change24h: -12.56,
+        changePercent24h: -2.85,
+        high24h: 445.50,
+        low24h: 425.20,
         lastUpdated: Date(),
-        sparkline: [48.5, 47.8, 48.2, 47.0, 46.5, 45.8, 46.2, 45.9, 45.5, 45.67],
+        sparkline: [442.5, 440.8, 438.2, 435.0, 432.5, 430.8, 429.2, 428.9, 428.5, 428.67],
         shieldedPercent: 23.2,
-        shieldedAmount: 1232000,
+        shieldedAmount: 4180000,
         shieldedChange24h: -0.08
     )
 
