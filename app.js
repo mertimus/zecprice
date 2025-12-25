@@ -272,7 +272,10 @@ function updateShieldedBtn(data) {
   }
   
   const isUp = percentChange >= 0;
-  const formatted = `${Math.abs(percentChange).toFixed(1)}% · ${label}`;
+  // Use 2 decimal places to capture small daily changes (supply is ~5M ZEC)
+  const absChange = Math.abs(percentChange);
+  const decimals = absChange < 0.1 ? 2 : 1;
+  const formatted = `${absChange.toFixed(decimals)}% · ${label}`;
   
   shieldedChangeBtn.textContent = formatted;
   shieldedChangeBtn.classList.remove('up', 'down');
