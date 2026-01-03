@@ -648,7 +648,6 @@ function initShieldedChart() {
           display: true,
           position: 'right',
           border: { display: false },
-          beginAtZero: true,
           grid: { 
             color: 'rgba(255, 255, 255, 0.06)',
             lineWidth: 1
@@ -913,7 +912,6 @@ function initPriceChart() {
           display: true,
           position: 'right',
           border: { display: false },
-          beginAtZero: true,
           grid: { 
             color: 'rgba(255, 255, 255, 0.06)',
             lineWidth: 1
