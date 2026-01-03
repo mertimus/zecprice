@@ -635,9 +635,6 @@ function initShieldedChart() {
       }
     }
   });
-  
-  // Trigger the progressive line draw animation
-  animateShieldedChartDraw(1000);
 }
 
 // ============================================================================
@@ -869,9 +866,6 @@ function initPriceChart() {
       }
     }
   });
-  
-  // Trigger the progressive line draw animation
-  animatePriceChartDraw(800, updateLiveIndicator);
 }
 
 // ============================================================================
@@ -970,6 +964,9 @@ function revealUI() {
   splash.classList.add('fade-out');
   setTimeout(() => {
     container.classList.add('ready');
+    // Trigger chart animations after UI is visible
+    animatePriceChartDraw(800, updateLiveIndicator);
+    animateShieldedChartDraw(1000);
   }, 1300);
 }
 
