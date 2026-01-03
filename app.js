@@ -202,16 +202,16 @@ const progressiveLinePlugin = {
   beforeDatasetDraw(chart, args, options) {
     if (!options.enable) return;
     
-    const { ctx } = chart;
-    const { chartArea } = chart;
     const meta = chart.getDatasetMeta(args.index);
+    const progress = meta._progressiveLineProgress;
     
-    if (!meta._progressiveLineProgress) {
-      meta._progressiveLineProgress = 0;
+    // Skip clipping if animation complete or not started
+    if (progress === undefined || progress >= 1) {
+      meta._clipped = false;
+      return;
     }
     
-    const progress = meta._progressiveLineProgress;
-    if (progress >= 1) return;
+    const { ctx, chartArea } = chart;
     
     // Clip to reveal only the drawn portion
     ctx.save();
@@ -223,11 +223,16 @@ const progressiveLinePlugin = {
       chartArea.bottom - chartArea.top
     );
     ctx.clip();
+    meta._clipped = true;
   },
   afterDatasetDraw(chart, args, options) {
     if (!options.enable) return;
-    const { ctx } = chart;
-    ctx.restore();
+    
+    const meta = chart.getDatasetMeta(args.index);
+    if (meta._clipped) {
+      chart.ctx.restore();
+      meta._clipped = false;
+    }
   }
 };
 
