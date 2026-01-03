@@ -622,12 +622,45 @@ function initShieldedChart() {
       },
       scales: {
         x: {
-          display: false,
-          grid: { display: false }
+          display: true,
+          border: { display: false },
+          grid: { 
+            display: false
+          },
+          ticks: {
+            display: true,
+            color: 'rgba(255, 255, 255, 0.25)',
+            font: { family: "'Inter', sans-serif", size: 10, weight: '400' },
+            maxTicksLimit: 5,
+            maxRotation: 0,
+            callback: function(value, index, ticks) {
+              const date = new Date(this.getLabelForValue(value));
+              if (shieldedChartTimeframe === '1d') {
+                return date.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true });
+              } else if (shieldedChartTimeframe === '1mo') {
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              }
+              return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+            }
+          }
         },
         y: {
-          display: false,
-          grid: { display: false }
+          display: true,
+          position: 'right',
+          border: { display: false },
+          grid: { 
+            color: 'rgba(255, 255, 255, 0.06)',
+            lineWidth: 1
+          },
+          ticks: {
+            display: true,
+            color: 'rgba(255, 255, 255, 0.25)',
+            font: { family: "'Inter', sans-serif", size: 10, weight: '400' },
+            maxTicksLimit: 4,
+            callback: function(value) {
+              return (value / 1000000).toFixed(1) + 'M';
+            }
+          }
         }
       },
       animation: {
@@ -853,12 +886,45 @@ function initPriceChart() {
       },
       scales: {
         x: {
-          display: false,
-          grid: { display: false }
+          display: true,
+          border: { display: false },
+          grid: { 
+            display: false
+          },
+          ticks: {
+            display: true,
+            color: 'rgba(255, 255, 255, 0.25)',
+            font: { family: "'Inter', sans-serif", size: 10, weight: '400' },
+            maxTicksLimit: 5,
+            maxRotation: 0,
+            callback: function(value, index, ticks) {
+              const date = new Date(this.getLabelForValue(value));
+              if (priceChartTimeframe === '1h' || priceChartTimeframe === '1d') {
+                return date.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true });
+              } else if (priceChartTimeframe === '1mo') {
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              }
+              return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+            }
+          }
         },
         y: {
-          display: false,
-          grid: { display: false }
+          display: true,
+          position: 'right',
+          border: { display: false },
+          grid: { 
+            color: 'rgba(255, 255, 255, 0.06)',
+            lineWidth: 1
+          },
+          ticks: {
+            display: true,
+            color: 'rgba(255, 255, 255, 0.25)',
+            font: { family: "'Inter', sans-serif", size: 10, weight: '400' },
+            maxTicksLimit: 4,
+            callback: function(value) {
+              return '$' + value.toLocaleString('en-US', { maximumFractionDigits: 0 });
+            }
+          }
         }
       },
       animation: {
