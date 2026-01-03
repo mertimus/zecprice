@@ -246,20 +246,21 @@ Chart.register(progressiveLinePlugin);
 
 // Animate the progressive line reveal
 let shieldedDrawAnimation = null;
+let priceDrawAnimation = null;
 
-function animateShieldedChartDraw(duration = 800) {
-  if (!shieldedChart) return;
+function animateChartDraw(chart, animationRef, duration = 800, onComplete = null) {
+  if (!chart) return;
   
-  const meta = shieldedChart.getDatasetMeta(0);
+  const meta = chart.getDatasetMeta(0);
   
   // Cancel any existing animation
-  if (shieldedDrawAnimation) {
-    cancelAnimationFrame(shieldedDrawAnimation);
+  if (animationRef.current) {
+    cancelAnimationFrame(animationRef.current);
   }
   
   // Start with line hidden
   meta._progressiveLineProgress = 0;
-  shieldedChart.draw();
+  chart.draw();
   
   const startTime = performance.now();
   
@@ -270,17 +271,30 @@ function animateShieldedChartDraw(duration = 800) {
     // Ease out cubic for smooth deceleration
     meta._progressiveLineProgress = 1 - Math.pow(1 - progress, 3);
     
-    shieldedChart.draw();
+    chart.draw();
     
     if (progress < 1) {
-      shieldedDrawAnimation = requestAnimationFrame(animate);
+      animationRef.current = requestAnimationFrame(animate);
     } else {
       meta._progressiveLineProgress = 1;
-      shieldedChart.draw();
+      chart.draw();
+      if (onComplete) onComplete();
     }
   }
   
-  shieldedDrawAnimation = requestAnimationFrame(animate);
+  animationRef.current = requestAnimationFrame(animate);
+}
+
+// Wrapper refs for animation state
+const shieldedAnimRef = { current: null };
+const priceAnimRef = { current: null };
+
+function animateShieldedChartDraw(duration = 800) {
+  animateChartDraw(shieldedChart, shieldedAnimRef, duration);
+}
+
+function animatePriceChartDraw(duration = 800, onComplete = null) {
+  animateChartDraw(priceChart, priceAnimRef, duration, onComplete);
 }
 
 async function fetchShieldedData() {
@@ -692,14 +706,14 @@ async function togglePriceChartTimeframe() {
       applyYAxisLock();
     }
     
-    // Update chart with animation
-    priceChart.update();
+    // Update chart data without animation, then trigger draw animation
+    priceChart.update('none');
     
-    // Reposition and show indicator after animation completes (400ms)
-    setTimeout(() => {
+    // Animate the line drawing, show indicator when complete
+    animatePriceChartDraw(800, () => {
       updateLiveIndicator();
       liveIndicator.style.opacity = '1';
-    }, 450);
+    });
     
     // Calculate % change for current timeframe
     if (data.length >= 2) {
@@ -835,6 +849,9 @@ function initPriceChart() {
               return '$' + item.raw.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             }
           }
+        },
+        progressiveLine: {
+          enable: true
         }
       },
       scales: {
@@ -848,12 +865,13 @@ function initPriceChart() {
         }
       },
       animation: {
-        duration: 400,
-        easing: 'easeOutQuart',
-        onComplete: updateLiveIndicator
+        duration: 0
       }
     }
   });
+  
+  // Trigger the progressive line draw animation
+  animatePriceChartDraw(800, updateLiveIndicator);
 }
 
 // ============================================================================
@@ -1080,3 +1098,4 @@ async function pollShieldedSupply() {
 }
 
 setInterval(pollShieldedSupply, POLL_INTERVAL);
+
