@@ -199,14 +199,20 @@ function updateLiveIndicator() {
 // Progressive line draw animation plugin
 const progressiveLinePlugin = {
   id: 'progressiveLine',
+  afterInit(chart, args, options) {
+    if (!options.enable) return;
+    // Start with line hidden - animation will reveal it
+    const meta = chart.getDatasetMeta(0);
+    meta._progressiveLineProgress = 0;
+  },
   beforeDatasetDraw(chart, args, options) {
     if (!options.enable) return;
     
     const meta = chart.getDatasetMeta(args.index);
     const progress = meta._progressiveLineProgress;
     
-    // Skip clipping if animation complete or not started
-    if (progress === undefined || progress >= 1) {
+    // Skip clipping if animation complete
+    if (progress >= 1) {
       meta._clipped = false;
       return;
     }
@@ -219,7 +225,7 @@ const progressiveLinePlugin = {
     ctx.rect(
       chartArea.left,
       chartArea.top,
-      (chartArea.right - chartArea.left) * progress,
+      (chartArea.right - chartArea.left) * (progress || 0),
       chartArea.bottom - chartArea.top
     );
     ctx.clip();
@@ -245,11 +251,15 @@ function animateShieldedChartDraw(duration = 800) {
   if (!shieldedChart) return;
   
   const meta = shieldedChart.getDatasetMeta(0);
-  meta._progressiveLineProgress = 0;
   
+  // Cancel any existing animation
   if (shieldedDrawAnimation) {
     cancelAnimationFrame(shieldedDrawAnimation);
   }
+  
+  // Start with line hidden
+  meta._progressiveLineProgress = 0;
+  shieldedChart.draw();
   
   const startTime = performance.now();
   
