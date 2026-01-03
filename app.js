@@ -961,11 +961,18 @@ function connectPriceStream() {
 function revealUI() {
   if (isReady) return;
   isReady = true;
+  
+  // Hide live indicator until animation completes
+  liveIndicator.style.opacity = '0';
+  
   splash.classList.add('fade-out');
   setTimeout(() => {
     container.classList.add('ready');
     // Trigger chart animations after UI is visible
-    animatePriceChartDraw(800, updateLiveIndicator);
+    animatePriceChartDraw(800, () => {
+      updateLiveIndicator();
+      liveIndicator.style.opacity = '1';
+    });
     animateShieldedChartDraw(1000);
   }, 1300);
 }
