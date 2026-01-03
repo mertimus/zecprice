@@ -196,6 +196,78 @@ function updateLiveIndicator() {
 // Shielded Data & Chart
 // ============================================================================
 
+// Progressive line draw animation plugin
+const progressiveLinePlugin = {
+  id: 'progressiveLine',
+  beforeDatasetDraw(chart, args, options) {
+    if (!options.enable) return;
+    
+    const { ctx } = chart;
+    const { chartArea } = chart;
+    const meta = chart.getDatasetMeta(args.index);
+    
+    if (!meta._progressiveLineProgress) {
+      meta._progressiveLineProgress = 0;
+    }
+    
+    const progress = meta._progressiveLineProgress;
+    if (progress >= 1) return;
+    
+    // Clip to reveal only the drawn portion
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(
+      chartArea.left,
+      chartArea.top,
+      (chartArea.right - chartArea.left) * progress,
+      chartArea.bottom - chartArea.top
+    );
+    ctx.clip();
+  },
+  afterDatasetDraw(chart, args, options) {
+    if (!options.enable) return;
+    const { ctx } = chart;
+    ctx.restore();
+  }
+};
+
+Chart.register(progressiveLinePlugin);
+
+// Animate the progressive line reveal
+let shieldedDrawAnimation = null;
+
+function animateShieldedChartDraw(duration = 800) {
+  if (!shieldedChart) return;
+  
+  const meta = shieldedChart.getDatasetMeta(0);
+  meta._progressiveLineProgress = 0;
+  
+  if (shieldedDrawAnimation) {
+    cancelAnimationFrame(shieldedDrawAnimation);
+  }
+  
+  const startTime = performance.now();
+  
+  function animate(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    
+    // Ease out cubic for smooth deceleration
+    meta._progressiveLineProgress = 1 - Math.pow(1 - progress, 3);
+    
+    shieldedChart.draw();
+    
+    if (progress < 1) {
+      shieldedDrawAnimation = requestAnimationFrame(animate);
+    } else {
+      meta._progressiveLineProgress = 1;
+      shieldedChart.draw();
+    }
+  }
+  
+  shieldedDrawAnimation = requestAnimationFrame(animate);
+}
+
 async function fetchShieldedData() {
   try {
     const res = await fetch(SHIELDED_DATA_URL);
@@ -318,7 +390,10 @@ async function toggleShieldedChartTimeframe() {
     
     shieldedChart.data.labels = labels;
     shieldedChart.data.datasets[0].data = data;
-    shieldedChart.update();
+    shieldedChart.update('none'); // Update data without animation
+    
+    // Trigger progressive line draw animation
+    animateShieldedChartDraw(800);
   }
   
   // Update button with % change
@@ -511,6 +586,9 @@ function initShieldedChart() {
               return Math.round(item.raw).toLocaleString('en-US') + ' ZEC';
             }
           }
+        },
+        progressiveLine: {
+          enable: true
         }
       },
       scales: {
@@ -528,6 +606,9 @@ function initShieldedChart() {
       }
     }
   });
+  
+  // Trigger the progressive line draw animation
+  animateShieldedChartDraw(1000);
 }
 
 // ============================================================================
