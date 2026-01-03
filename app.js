@@ -89,7 +89,7 @@ function switchView() {
     chartPrice.classList.remove('active');
     chartShielded.classList.add('active');
     // Update button
-    toggleText.textContent = 'show price chart';
+    toggleText.textContent = 'price chart';
     viewToggle.classList.add('flipped');
   } else {
     currentView = 'price';
@@ -100,7 +100,7 @@ function switchView() {
     chartShielded.classList.remove('active');
     chartPrice.classList.add('active');
     // Update button
-    toggleText.textContent = 'show shielded supply';
+    toggleText.textContent = 'shielded supply';
     viewToggle.classList.remove('flipped');
   }
 }
